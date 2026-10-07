@@ -1,0 +1,24 @@
+# 模型文件夹，千万不要上传大模型
+model/
+*.bin
+*.safetensors
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 日志、输出文件
+logs/
+output/
+*.log
+
+# 环境
+.env
+.venv/
+venv/
+
+# 编辑器
+.vscode/
+.idea/

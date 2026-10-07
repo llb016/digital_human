@@ -1,0 +1,7 @@
+torch
+transformers
+accelerate
+pyyaml
+sentence-transformers
+faiss-cpu
+numpy
