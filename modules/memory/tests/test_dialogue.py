@@ -40,13 +40,40 @@ def run():
     results.append({"name": "提示词长度受控(<=420字)", "ok": ok,
                     "info": f"当前 {len(sysp)} 字（精简前 440 字）"})
 
-    # 5. RAG 长对话记忆：先说偏好，再问"记得吗"，应检索到先前记忆
+    # 5. 跨轮记忆：先说偏好，再问"记得吗"。
+    #    注意（Iter 24）：这里断言的是**结果**（该信息在本轮上下文中可见），
+    #    而不是**机制**（必须由 RAG 召回）。因为最近几轮的原文本来就在历史消息里，
+    #    此时 RAG 再去召回同一句会导致同一内容在提示词里出现两次（已去重）。
+    #    历史窗口外的旧事才必须靠 RAG —— 那一条由下面的用例单独覆盖。
     gen.generate("我特别喜欢看科幻电影，周末常去电影院", user_id="u2")
     out2 = gen.generate("你还记得我喜欢什么吗？", user_id="u2")
     mem_texts = " ".join(m["text"] for m in out2.get("retrieved_memories", []))
-    ok = "科幻电影" in mem_texts
-    results.append({"name": "RAG长对话记忆(跨轮检索命中)", "ok": ok,
-                    "info": f"检索到 {len(out2.get('retrieved_memories', []))} 条, 命中={'科幻电影' in mem_texts}"})
+    hist_texts = " ".join(h["content"] for h in gen.history.get("u2", []))
+    visible = (mem_texts + hist_texts + out2.get("system_prompt", ""))
+    ok = "科幻电影" in visible
+    results.append({"name": "跨轮记忆（信息在本轮上下文中可见）", "ok": ok,
+                    "info": f"RAG召回 {len(out2.get('retrieved_memories', []))} 条；"
+                            f"信息经{'记忆' if '科幻电影' in mem_texts else '历史消息'}可见"})
+
+    # 5b. 记忆去重（Iter 24）：同一内容不得在【相关记忆】与历史消息中同时出现
+    overlaps = {m["text"].strip() for m in out2.get("retrieved_memories", [])} & \
+               {h["content"].strip() for h in gen.history.get("u2", [])}
+    results.append({"name": "记忆去重（不与历史消息重复注入）", "ok": not overlaps,
+                    "info": f"重复 {len(overlaps)} 条" if overlaps else "无重复注入"})
+
+    # 5c. 长程召回仍有效：把关键信息挤出历史窗口后，必须靠 RAG 想起来
+    keep = gen.persona_cfg.get("max_history_turns")
+    gen.persona_cfg["max_history_turns"] = 1
+    gen.generate("我养了一只叫豆豆的橘猫", user_id="u4")
+    for i in range(4):
+        gen.generate(f"随便聊聊第{i}句", user_id="u4")
+    out4 = gen.generate("你还记得我养的猫叫什么吗", user_id="u4")
+    mem4 = " ".join(m["text"] for m in out4.get("retrieved_memories", []))
+    ok = ("豆豆" in mem4) or ("橘猫" in mem4)
+    gen.persona_cfg["max_history_turns"] = keep
+    results.append({"name": "长程召回（历史窗口外仍能想起）", "ok": ok,
+                    "info": f"RAG召回 {len(out4.get('retrieved_memories', []))} 条, "
+                            f"命中={'豆豆' in mem4 or '橘猫' in mem4}"})
 
     # 6. 画像累积：明确透露性别后应写入用户画像
     gen.generate("我是男生，平时压力挺大的", user_id="u3")

@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """对话生成模块 —— 把人设、画像、记忆、情绪整合为一次回复。
 
 流程：
@@ -18,6 +18,7 @@ import os
 import re
 
 from .persona_prompts import build_system_prompt
+from .memory_store import format_hits
 from .anti_hallucination import FactConsistencyChecker
 
 # ChatML / Qwen 特殊标记（如 <|im_start|>、<|im_end|>、<|endoftext|>）。
@@ -99,9 +100,19 @@ class DialogueGenerator:
             if not emotion_known:
                 self.unseen_emotions.add(emotion_label)
 
+        # 0) 先取本轮要带上的历史窗口（同时用于"记忆去重"，见下）
+        hist_window = self.history.get(user_id, [])[
+            -int(self.persona_cfg.get("max_history_turns", 8)) * 2:
+        ]
+
         # 1) RAG 检索相关记忆
+        #    去重（Iter 24）：最近几轮本来就以原始消息形式在 hist_window 里，
+        #    若再被 RAG 召回一次，同一内容会在提示词里出现两遍。
+        #    RAG 的价值在"想起很久以前的事"，故用历史正文做排除集，避免重复注入。
+        exclude = {h.get("content", "").strip() for h in hist_window}
         retrieved = self.memory.search(user_input, top_k=self.memory_cfg.get("top_k"))
-        memory_context = self.memory.build_context(user_input, top_k=self.memory_cfg.get("top_k"))
+        retrieved = [(it, s) for it, s in retrieved if it["text"].strip() not in exclude]
+        memory_context = format_hits(retrieved)
 
         # 2) 用户画像（累积式：把实时抽取结果合并进历史画像）
         profile_flat = self._update_profile(user_id, user_input)

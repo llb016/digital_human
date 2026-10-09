@@ -36,6 +36,16 @@ KIND_FACT = "fact"
 KIND_PROFILE = "profile_snapshot"
 
 
+def format_hits(hits) -> str:
+    """把 (item, score) 列表格式化为可注入提示词的文本块。"""
+    if not hits:
+        return "（无相关记忆）"
+    return "\n".join(
+        f"- [{it['metadata'].get('kind', '')}] {it['text']} (相关度{score:.2f})"
+        for it, score in hits
+    )
+
+
 class VectorMemoryStore:
     def __init__(self, embedder, memory_cfg: dict | None = None):
         self.embedder = embedder
@@ -110,15 +120,19 @@ class VectorMemoryStore:
             floor = max(threshold, scored[0][1] * self.relative_ratio)
         return [(it, s) for it, s in scored if s >= floor][:top_k]
 
-    def build_context(self, query: str, top_k: int | None = None) -> str:
-        """把检索结果组织为可注入提示词的中文文本块。"""
+    def build_context(self, query: str, top_k: int | None = None,
+                      exclude_texts: set | None = None) -> str:
+        """把检索结果组织为可注入提示词的中文文本块。
+
+        exclude_texts：需要排除的记忆正文集合（**去重**用，见 Iter 24）。
+        最近几轮的对话本来就以原始消息形式在历史上下文里，若再被 RAG 召回一次，
+        同一条内容就会在提示词里出现两次——纯浪费 token，且可能让模型误以为
+        用户强调过。故用历史消息的正文做排除集。
+        """
         hits = self.search(query, top_k=top_k)
-        if not hits:
-            return "（无相关记忆）"
-        lines = []
-        for it, score in hits:
-            lines.append(f"- [{it['metadata'].get('kind', '')}] {it['text']} (相关度{score:.2f})")
-        return "\n".join(lines)
+        if exclude_texts:
+            hits = [(it, s) for it, s in hits if it["text"].strip() not in exclude_texts]
+        return format_hits(hits)
 
     def remember_turn(self, user_text: str, assistant_text: str, emotion: str = "") -> tuple[str, str]:
         """记录一轮完整对话（用户 + 助手），并返回两条记忆 id。"""
