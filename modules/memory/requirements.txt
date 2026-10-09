@@ -1,0 +1,18 @@
+# 成员2模块依赖
+#
+# 【必需】仅 numpy 一个：向量运算。其余全部走标准库，保证离线可跑、可复现。
+numpy>=1.24
+
+# 【可选-推荐】解析团队公共 config.yaml。
+#   缺失时模块自动退回内置极简 YAML 解析器(src/yaml_light.py)，功能不受影响。
+# PyYAML>=6.0
+
+# 【可选】已改用标准库 urllib 调用 OpenAI 兼容接口，故不再需要 requests。
+#   若团队环境偏好 requests，可在 src/llm_client.py 中替换 _chat_openai_compatible。
+# requests>=2.28
+
+# 【可选-增强】本地高质量中文向量嵌入，替换内置 hashing 嵌入后检索更准。
+# sentence-transformers>=2.2
+
+# 【可选-增强】更强的向量库后端（默认用内置 numpy 向量库，无外部依赖）。
+# chromadb>=0.4

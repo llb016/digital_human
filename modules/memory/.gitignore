@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 本地配置（含密钥指向）不入库，只提交 config.example.yaml
+config.yaml
+
+# 运行时产物：记忆库 / 画像 / 向量缓存
+data/memory_store.json
+data/test_memory_store.json
+data/demo_memory_store.json
+data/profiles.json
+
+# 团队 config.yaml 里 vector_db_path: "./memory_vector_db" 指向的持久化文件。
+# 它由 chat.py / check_model.py 退出时落盘生成，**属于运行时产物，不应提交**。
+# 注意路径由配置决定，故这里把常见形态都覆盖（文件或目录）。
+memory_vector_db
+memory_vector_db/
+modules/memory_vector_db
+
+# LoRA 训练产物
+data/lora/*.jsonl
+outputs/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+
+# ---------------------------------------------------------------
+# 让实验日志能被版本控制收录
+#
+# 团队仓库根目录的 .gitignore 含一条 `logs/`，而该模式**不带前导斜杠**，
+# 会在任意层级匹配名为 logs 的目录 —— 于是本模块的 logs/ 也会被连带忽略。
+# 但任务书明确要求"自测结果、实验调优日志写进 logs 文档"，
+# 且评审的「平台运行记录」项正是看这些记录。日志被忽略 = 白做。
+#
+# 这里的否定规则经实测有效：无需修改团队根 .gitignore，只在本模块内即可救回。
+# （已在 llb016/digital_human 的 modules/memory/ 下实测：
+#   加规则前 logs/*.md 显示为被忽略，加规则后变为可提交）
+# ---------------------------------------------------------------
+!logs/
+!logs/**
