@@ -69,6 +69,37 @@ def run():
         gen.memory.clear()
     results.append({"name": "四套人设均可正常生成", "ok": ok, "info": "、".join(names)})
 
+    # 8b. 与成员1 的接口契约（见 docs/interface_for_member1.md）——
+    #     成员1 的情感识别输出经 emotion_label 传入，本模块**不校验、不拦截**。
+    gen.memory.clear()
+    gen.profiles.clear()
+    gen.history.clear()
+
+    def emotion_line(out):
+        return next((l for l in out["system_prompt"].splitlines() if "当前情绪" in l), "")
+
+    # a) 成员1 未就绪：不传标签 -> 显示"（未知）"，功能不受影响
+    oa = gen.generate("今天好累", user_id="ct_a")
+    ok_a = emotion_line(oa) == "【当前情绪】（未知）" and bool(oa["response"])
+
+    # b) 成员1 就绪：传已知标签 -> 原样注入
+    ob = gen.generate("今天好累", user_id="ct_b", emotion_label="疲惫")
+    ok_b = emotion_line(ob) == "【当前情绪】疲惫" and ob["emotion_label_known"] is True
+
+    # c) 成员1 用了配置外的标签 -> 照常注入、不拦截，但记入漂移清单
+    oc = gen.generate("好烦", user_id="ct_c", emotion_label="烦躁")
+    ok_c = (emotion_line(oc) == "【当前情绪】烦躁"
+            and bool(oc["response"])
+            and oc["emotion_label_known"] is False
+            and "烦躁" in gen.emotion_report()["unseen_labels"])
+
+    for name, okk, info in [
+        ("契约A: 不传情绪标签仍可正常对话", ok_a, emotion_line(oa)),
+        ("契约B: 传入情绪标签原样注入提示词", ok_b, emotion_line(ob)),
+        ("契约C: 未知标签不拦截且记入漂移清单", ok_c, emotion_line(oc)),
+    ]:
+        results.append({"name": name, "ok": okk, "info": info})
+
     # 9. 输出清洗：Qwen/ChatML 特殊标记与角色回显必须被剥离
     dirty = "<|im_start|>assistant\n小暖：小暖：我在这里陪着你。<|im_end|>"
     clean = gen._postprocess(dirty)

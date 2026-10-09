@@ -1,12 +1,12 @@
 # 成员2 模块自测报告（自动生成）
 
-- 生成时间：2026-10-09 20:14:03
+- 生成时间：2026-10-09 20:23:52
 - 解释器：`D:\py\.venv\Scripts\python.exe`
 - Python：3.14.7（Windows 11）
-- 大模型后端：`transformers_local`（mock = 离线自测，不联网）
+- 大模型后端：`mock`（mock = 离线自测，不联网）
 - 向量后端：配置 `sentence_transformers` / 实际生效 `hashing`（缺依赖时自动降级）
 - 画像后端：`heuristic`
-- 用例通过：**75/75**（通过率 100.0%）
+- 用例通过：**78/78**（通过率 100.0%）
 
 ## 关键指标
 
@@ -20,14 +20,14 @@
 
 | 用例 | 结果 | 说明 |
 | --- | --- | --- |
-| 配置节[model]存在 | ✅ PASS | ['backend', 'base_url', 'api_key_env', 'model_name', 'device', 'dtype', 'temperature', 'max_tokens', 'timeout', 'model_path', 'max_new_tokens'] |
+| 配置节[model]存在 | ✅ PASS | ['backend', 'base_url', 'api_key_env', 'model_name', 'device', 'dtype', 'temperature', 'max_tokens', 'timeout', 'max_new_tokens'] |
 | 配置节[embedding]存在 | ✅ PASS | ['backend', 'fallback_backend', 'model_name', 'dim', 'ngram_min', 'ngram_max', 'function_word_weight'] |
 | 配置节[memory]存在 | ✅ PASS | ['top_k', 'similarity_threshold', 'relative_ratio', 'similarity_threshold_by_backend', 'persist_path', 'max_dialogue_turns', 'summarize_every', 'max_facts'] |
 | 配置节[profile]存在 | ✅ PASS | ['dimensions_path', 'backend', 'min_confidence'] |
 | 配置节[persona]存在 | ✅ PASS | ['default_persona', 'language', 'max_history_turns', 'anti_hallucination', 'max_reply_tokens', 'hallucination_check'] |
 | 画像维度清单解析 | ✅ PASS | 共 17 个维度 |
 | 枚举维度均含兜底选项'未知' | ✅ PASS | 通过 |
-| 相对路径解析为模块根目录下绝对路径 | ✅ PASS | D:\动感地带1\digital_human\modules\memory\profiles/profile_dimensions.yaml |
+| 相对路径解析为模块根目录下绝对路径 | ✅ PASS | D:\动感地带\module2_user_profile_rag\profiles/profile_dimensions.yaml |
 | 嵌入后端构建成功(含缺依赖降级) | ✅ PASS | 配置=sentence_transformers, 实际生效=hashing |
 | 情感标签集已配置 | ✅ PASS | 开心、平静、焦虑、悲伤、愤怒、孤独、疲惫、未知 |
 | PyYAML 与内置解析器一致性 | ✅ PASS | config.example.yaml 与 profile_dimensions.yaml 均一致 |
@@ -65,7 +65,7 @@
 | 检索排序(篮球命中) | ✅ PASS | top1=我特别喜欢打篮球，每周都去球场 score=0.452 |
 | 相似度阈值过滤无关查询 | ✅ PASS | 命中数=0 |
 | 检索结果可格式化注入提示词 | ✅ PASS | - [turn] 我特别喜欢打篮球，每周都去球场 (相关度0.45) |
-| 记录一轮对话返回2条记忆 | ✅ PASS | 85078649…/8d8212d1… |
+| 记录一轮对话返回2条记忆 | ✅ PASS | bf31bf0f…/7defa086… |
 | 记忆持久化与加载(round-trip) | ✅ PASS | 原5条, 载入5条 |
 | 分层压缩tier1(原始轮→事实记忆) | ✅ PASS | 原始轮=3<=上限5, 事实=5, 摘要=8, 总=16 |
 | 分层压缩tier2(事实→摘要) | ✅ PASS | 事实=5<=上限6, 摘要=8 |
@@ -104,6 +104,9 @@
 | 画像跨轮累积(gender=男) | ✅ PASS | gender=男 |
 | 多轮对话历史维护 | ✅ PASS | u1历史条数=2 |
 | 四套人设均可正常生成 | ✅ PASS | 温暖倾听者、理性朋友、元气鼓励师、治愈系陪伴 |
+| 契约A: 不传情绪标签仍可正常对话 | ✅ PASS | 【当前情绪】（未知） |
+| 契约B: 传入情绪标签原样注入提示词 | ✅ PASS | 【当前情绪】疲惫 |
+| 契约C: 未知标签不拦截且记入漂移清单 | ✅ PASS | 【当前情绪】烦躁 |
 | 输出清洗(剥离Qwen特殊标记/角色回显) | ✅ PASS | 小暖：我在这里陪着你。 |
 | 空回复兜底 | ✅ PASS | 我在听，你可以慢慢说。 |
 
@@ -134,8 +137,8 @@
 
 | 用例 | 结果 | 说明 |
 | --- | --- | --- |
-| Iter 编号连续无跳号/重号（共 23 条） | ✅ PASS | 范围 0~22 |
-| 每条 Iter 均有实质内容（23/23） | ✅ PASS | 均含改动/数据/结论 |
+| Iter 编号连续无跳号/重号（共 24 条） | ✅ PASS | 范围 0~23 |
+| 每条 Iter 均有实质内容（24/24） | ✅ PASS | 均含改动/数据/结论 |
 | 留痕规范章节存在 | ✅ PASS | §〇 留痕规范 |
 | 变更对照表存在 | ✅ PASS | §七 摘要章节变更对照表 |
 | 快照章节均标注更新点（5/5） | ✅ PASS | §一/§三/§四/§五/§六 均已标注（共 5 处） |

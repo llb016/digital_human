@@ -46,6 +46,7 @@ module2_user_profile_rag/
 ├── tests/                       # 10 个自测套件（含长对话记忆、持久化、防瞎编、日志可追溯性）
 ├── docs/
 │   ├── self_test_guide.md       # ★ 自测指南（步骤/结果解读/排错/检查清单）
+│   ├── interface_for_member1.md # ★ 与成员1（情感识别）的接口契约
 │   └── lora_plan.md             # LoRA 微调预案（触发条件+数据格式+配置）
 └── logs/
     ├── experiment_log.md        # ★ 实验与调优日志（实时更新）
@@ -61,7 +62,7 @@ cd module2_user_profile_rag
 pip install -r requirements.txt          # 最少只需 numpy（即可离线跑通）
 pip install sentence-transformers        # 推荐：启用高质量中文向量嵌入
 
-python run_self_test.py                  # 一键自测（75 个用例，约 7 秒）
+python run_self_test.py                  # 一键自测（78 个用例，约 7 秒）
 python chat.py                           # ★ 人工输入文本，和数字人对话
 python demo_chat.py                      # 多轮对话演示（固定剧本，含 RAG 记忆召回）
 python check_model.py                    # 接入 Qwen 后：连通性/延迟体检
@@ -207,7 +208,7 @@ pipe.get_profile("u1"); pipe.reset("u1"); pipe.save(); pipe.load()
 
 ## 6. 自测结果与调优记录
 
-- 一键自测：**75/75 用例通过**（配置 / 画像 / 记忆 / 长对话记忆 / **持久化** / 对话 / **防瞎编** / 接口 / **日志可追溯性**，共 10 套件）
+- 一键自测：**78/78 用例通过**（配置 / 画像 / 记忆 / 长对话记忆 / **持久化** / 对话 / **防瞎编** / 接口 / **日志可追溯性**，共 10 套件）
 - 画像抽取准确率：**40/40 个标签 = 1.0000**（自建标注样本，规则后端）
 - 否定结构鲁棒性：**7/7**；误报回归：**3/3**
 - **长对话记忆：30 轮对话 + 触发压缩后，早期植入的 3 条事实仍能全部召回（3/3）**

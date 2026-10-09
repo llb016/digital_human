@@ -65,7 +65,7 @@ python demo_chat.py
 
 ```
 --------------------------------------------------------------------
-用例通过：75/75    通过率：100.0%
+用例通过：78/78    通过率：100.0%
 关键指标：
   - profile_accuracy = 1.0
 --------------------------------------------------------------------
@@ -157,7 +157,7 @@ python -c "from tests import test_long_memory as t; [print(('[PASS] ' if r['ok']
 | `ModuleNotFoundError: numpy` | 缺依赖 | `python -m pip install numpy` |
 | `[WARN] ... 已自动降级为 'hashing'` | 未装 ST | 正常；装了则 `pip install sentence-transformers` |
 | `[FAIL] 长对话后召回早期事实` | 检索阈值不合适 | 换 ST 后必须**重新标定** `similarity_threshold` |
-| 用例数不是 75 | 有测试文件漏提交 | 检查 `tests/` 下 12 个文件是否齐全（10 个 test_*.py + `context.py` + `__init__.py`） |
+| 用例数不是 78 | 有测试文件漏提交 | 检查 `tests/` 下 12 个文件是否齐全（10 个 test_*.py + `context.py` + `__init__.py`） |
 
 ---
 
@@ -187,10 +187,10 @@ python -c "import time; from src.pipeline import CompanionPipeline; p=CompanionP
 
 ## 七、提交 PR 前的自测检查清单
 
-- [ ] `python run_self_test.py` → **75/75**
+- [ ] `python run_self_test.py` → **78/78**
 - [ ] `python demo_chat.py` → 第 5 轮 RAG 命中 > 0
 - [ ] `logs/self_test_report.md` 已更新（含本次运行时间）
 - [ ] `logs/experiment_log.md` 已记录本次改动与对应数据
-- [ ] **换机复现**：在干净目录重新克隆后，`pip install -r requirements.txt` → 自测仍 75/75
+- [ ] **换机复现**：在干净目录重新克隆后，`pip install -r requirements.txt` → 自测仍 78/78
 - [ ] 未修改 `config.yaml`（公共配置只读）
 - [ ] 未提交 `__pycache__/`、`config.yaml`、`data/memory_store.json`（见 `.gitignore`）
