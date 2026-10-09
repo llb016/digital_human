@@ -1,0 +1,201 @@
+# ============================================================
+# 用户画像提取维度清单（成员2维护）
+# 项目：数字人综合情感陪伴对话模型
+# 用途：作为画像抽取（profile_extractor）与自动评测（成员3）
+#       共享的"单一事实来源(single source of truth)"。
+# 说明：
+#   - type: single_choice 用于可枚举维度，便于自动评测逐项判分；
+#   - type: free_text    用于开放维度，评测时以语义/关键词匹配判分。
+#   - 所有枚举维度都必须包含 "未知" 作为兜底选项，
+#     避免模型在信息不足时强行猜测（降低"瞎编"风险）。
+#   - 本文件必须对标准 YAML 解析器（PyYAML）合法：
+#     标量若以引号开头，引号后不得再跟内容。见下方 example 写法。
+# ============================================================
+version: "1.0"
+last_updated: "2025-XX-XX"
+owner: "成员2"
+
+dimensions:
+  # ---------- 一、基础身份信息 ----------
+  - id: gender
+    name: 性别
+    category: 基础身份
+    type: single_choice
+    options: [男, 女, 其他, 未知]
+    description: 用户在对话中透露或可明确推断的性别。
+    prompt_hint: 仅当用户明确提及或强烈暗示时填写，否则填"未知"。
+    example: '我作为一个男生，压力真的好大 -> 男'
+    priority: 1
+
+  - id: age_group
+    name: 年龄段
+    category: 基础身份
+    type: single_choice
+    options: [未成年, "18-24", "25-34", "35-44", "45-59", "60以上", 未知]
+    description: 用户所处的年龄段，可根据求学/工作/人生阶段推断。
+    prompt_hint: 缺少依据时填"未知"，不要臆测具体年龄数字。
+    example: '我刚上大学，感觉好迷茫 -> 18-24'
+    priority: 2
+
+  - id: occupation
+    name: 职业/身份
+    category: 基础身份
+    type: single_choice
+    options: [学生, IT互联网, 教育, 医疗, 金融, 制造业, 自由职业, 其他, 未知]
+    description: 用户当前的职业或主要身份。
+    prompt_hint: 仅依据明确信息，模糊描述归入"其他"或"未知"。
+    example: '我天天写代码写到凌晨 -> IT互联网'
+    priority: 3
+
+  - id: location
+    name: 所在城市层级
+    category: 基础身份
+    type: single_choice
+    options: [一线城市, 二线城市, 三线及以下, 乡镇, 海外, 未知]
+    description: 用户常住地的城市发展层级。
+    prompt_hint: 仅有城市名而无法判断层级时可保守填"未知"。
+    example: '我在北京漂了三年 -> 一线城市'
+    priority: 4
+
+  # ---------- 二、情感与心理状态 ----------
+  #
+  # 注意（Iter 20 决策）：**"当前情绪"维度已移除**。
+  # 原因：情绪识别由成员1 的情感识别模块负责，其输出通过
+  #   CompanionPipeline.chat(..., emotion_label=...)
+  # 注入提示词的【当前情绪】段落。若本模块再用规则抽一个"当前情绪"，
+  # 同一个 prompt 里会出现两个可能互相矛盾的情绪标签，模型会困惑。
+  # 故：**逐轮情绪一律以成员1 为准，本模块不重复判断**；
+  # 这里仅保留"整体情绪基调"这一**跨轮次的长期画像属性**（二者粒度不同）。
+  - id: emotion_tone
+    name: 整体情绪基调
+    category: 情感与心理状态
+    type: single_choice
+    options: [积极, 中性, 消极, 未知]
+    description: 一段时期内用户情绪的总体倾向。
+    prompt_hint: 综合多次对话判断，避免被单次情绪波动带偏。
+    example: '最近总是不开心，做什么都没意思 -> 消极'
+    priority: 6
+
+  - id: stress_level
+    name: 压力水平
+    category: 情感与心理状态
+    type: single_choice
+    options: [低, 中, 高, 未知]
+    description: 用户当前承受压力的大致水平。
+    prompt_hint: 从工作/学习/生活压力相关表述推断。
+    example: 'deadline 逼得我喘不过气 -> 高'
+    priority: 7
+
+  - id: loneliness_level
+    name: 孤独感强度
+    category: 情感与心理状态
+    type: single_choice
+    options: [低, 中, 高, 未知]
+    description: 用户表现出的孤独、缺乏陪伴的程度。
+    prompt_hint: 依据"没人陪""一个人"等表述判断。
+    example: '一个人吃饭一个人回家，连说话的人都没有 -> 高'
+    priority: 8
+
+  # ---------- 三、兴趣与偏好 ----------
+  - id: hobbies
+    name: 兴趣爱好
+    category: 兴趣与偏好
+    type: single_choice
+    options: [阅读, 影视, 游戏, 音乐, 运动, 美食, 旅行, 科技, 其他, 未知]
+    description: 用户的主要兴趣爱好（取主导项）。
+    prompt_hint: 多兴趣并存时取用户最常提及或最投入的一项。
+    example: '周末我一般就宅家打游戏 -> 游戏'
+    priority: 9
+
+  - id: topic_preference
+    name: 倾诉话题偏好
+    category: 兴趣与偏好
+    type: single_choice
+    options: [情感关系, 工作学习, 家庭, 健康, 兴趣分享, 日常闲聊, 未知]
+    description: 用户最倾向于倾诉/讨论的话题方向。
+    prompt_hint: 依据用户主动开启话题的频次判断。
+    example: '又和我妈吵架了…… -> 家庭'
+    priority: 10
+
+  - id: comfort_style
+    name: 被安慰方式偏好
+    category: 兴趣与偏好
+    type: single_choice
+    options: [倾听型, 建议型, 鼓励型, 陪伴型, 幽默型, 未知]
+    description: 用户在寻求安慰时更受用的互动方式。
+    prompt_hint: 从用户对既往回应的反馈（如"谢谢你说这些"）推断。
+    example: '你不用给我建议，听我说说就好 -> 倾听型'
+    priority: 11
+
+  # ---------- 四、人际关系 ----------
+  - id: relationship_status
+    name: 感情状态
+    category: 人际关系
+    type: single_choice
+    options: [单身, 恋爱中, 已婚, 复杂, 未知]
+    description: 用户当前的亲密关系状态。
+    prompt_hint: 只记录用户主动提及的信息，勿追问。
+    example: '我和对象异地，好难 -> 恋爱中'
+    priority: 12
+
+  - id: family_relation
+    name: 家庭关系
+    category: 人际关系
+    type: single_choice
+    options: [融洽, 一般, 紧张, 未知]
+    description: 用户与家人的整体关系状态。
+    prompt_hint: 依据家庭话题中的情感倾向判断。
+    example: '爸妈总是理解不了我 -> 紧张'
+    priority: 13
+
+  - id: social_circle
+    name: 社交状态
+    category: 人际关系
+    type: single_choice
+    options: [朋友较多, 少数密友, 较孤单, 未知]
+    description: 用户现实社交圈的规模与质量。
+    prompt_hint: 从"和朋友聚会""没人可倾诉"等表述推断。
+    example: '我朋友不多，但有几个能交心的 -> 少数密友'
+    priority: 14
+
+  # ---------- 五、生活与健康 ----------
+  - id: sleep_quality
+    name: 睡眠状况
+    category: 生活与健康
+    type: single_choice
+    options: [良好, 一般, 差, 未知]
+    description: 用户的睡眠质量。
+    prompt_hint: 依据"失眠""睡不好""睡得香"等表述判断。
+    example: '昨晚又失眠到三点 -> 差'
+    priority: 15
+
+  - id: work_study_pressure
+    name: 工作/学习压力
+    category: 生活与健康
+    type: single_choice
+    options: [低, 中, 高, 未知]
+    description: 用户来自工作或学业方面的压力水平。
+    prompt_hint: 与通用压力(stress_level)区分，聚焦工作/学业来源。
+    example: '期末考加实习，真的扛不住 -> 高'
+    priority: 16
+
+  # ---------- 六、性格与价值观 ----------
+  - id: personality
+    name: 性格倾向
+    category: 性格与价值观
+    type: single_choice
+    options: [内向, 外向, 中性, 未知]
+    description: 用户在社交与表达上的性格倾向。
+    prompt_hint: 从"社恐""慢热""自来熟"等自我描述判断。
+    example: '我比较社恐，不太会主动社交 -> 内向'
+    priority: 17
+
+  - id: attachment_need
+    name: 陪伴需求强度
+    category: 性格与价值观
+    type: single_choice
+    options: [低, 中, 高, 未知]
+    description: 用户对情感陪伴与倾诉的需求程度。
+    prompt_hint: 依据用户主动寻求陪伴的频率与强度判断。
+    example: '每天下班回来都好想找人说说话 -> 高'
+    priority: 18
