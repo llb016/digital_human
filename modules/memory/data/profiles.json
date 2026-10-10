@@ -1,0 +1,75 @@
+{
+  "profiles": {
+    "smoke": {
+      "gender": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "age_group": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "occupation": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "location": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "emotion_tone": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "stress_level": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "loneliness_level": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "hobbies": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "topic_preference": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "comfort_style": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "relationship_status": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "family_relation": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "social_circle": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "sleep_quality": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "work_study_pressure": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "personality": {
+        "value": "未知",
+        "confidence": 0.0
+      },
+      "attachment_need": {
+        "value": "未知",
+        "confidence": 0.0
+      }
+    }
+  },
+  "history": {}
+}
