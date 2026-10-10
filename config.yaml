@@ -1,5 +1,5 @@
 # 大模型基础配置
-model_path: "./model/qwen2.5"
+model_path: "../model/qwen2.5"
 max_new_tokens: 200
 temperature: 0.7
 

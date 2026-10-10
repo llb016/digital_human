@@ -1,0 +1,132 @@
+[
+  {
+    "id": "s01",
+    "text": "我是男生，在北京做程序员，天天加班写代码，压力大到喘不过气，晚上还经常失眠。",
+    "expected": {
+      "gender": "男",
+      "occupation": "IT互联网",
+      "location": "一线城市",
+      "stress_level": "高",
+      "work_study_pressure": "高",
+      "sleep_quality": "差",
+      "emotion_tone": "消极"
+    }
+  },
+  {
+    "id": "s02",
+    "text": "我刚上大学，感觉好迷茫，一个人吃饭一个人回家，连说话的人都没有。",
+    "expected": {
+      "age_group": "18-24",
+      "occupation": "学生",
+      "loneliness_level": "高",
+      "emotion_tone": "消极",
+      "social_circle": "较孤单"
+    }
+  },
+  {
+    "id": "s03",
+    "text": "我和对象异地好难，昨晚又想哭了，最近总是不开心。",
+    "expected": {
+      "relationship_status": "恋爱中",
+      "emotion_tone": "消极",
+      "topic_preference": "情感关系"
+    }
+  },
+  {
+    "id": "s04",
+    "text": "周末我一般就宅家打游戏，朋友不多，但有几个能交心的。",
+    "expected": {
+      "hobbies": "游戏",
+      "social_circle": "少数密友"
+    }
+  },
+  {
+    "id": "s05",
+    "text": "我一个人好想找人说说话，真的好孤单，特别想要人陪。",
+    "expected": {
+      "loneliness_level": "高",
+      "attachment_need": "高"
+    }
+  },
+  {
+    "id": "s06",
+    "text": "睡前听歌放松一下，感觉还好，没什么特别的。",
+    "expected": {
+      "hobbies": "音乐",
+      "emotion_tone": "中性"
+    }
+  },
+  {
+    "id": "s07",
+    "text": "又和我妈吵架了，真的好生气，爸妈总是理解不了我。",
+    "expected": {
+      "topic_preference": "家庭",
+      "family_relation": "紧张"
+    }
+  },
+  {
+    "id": "s08",
+    "text": "我比较社恐，不太会主动社交，感觉挺孤独的。",
+    "expected": {
+      "personality": "内向",
+      "social_circle": "较孤单",
+      "loneliness_level": "高"
+    }
+  },
+  {
+    "id": "s09",
+    "text": "老板又给派活，deadline赶不完，压力大，能给我点建议怎么办吗？",
+    "expected": {
+      "work_study_pressure": "高",
+      "stress_level": "高",
+      "comfort_style": "建议型"
+    }
+  },
+  {
+    "id": "s10",
+    "text": "我自来熟，朋友很多，今天聚会特别开心！",
+    "expected": {
+      "personality": "外向",
+      "social_circle": "朋友较多",
+      "emotion_tone": "积极"
+    }
+  },
+  {
+    "id": "s11",
+    "text": "最近总是不开心，做什么都提不起劲。",
+    "expected": {
+      "emotion_tone": "消极"
+    }
+  },
+  {
+    "id": "s12",
+    "text": "别担心我，我今天特别开心，项目顺利交付了！",
+    "expected": {
+      "emotion_tone": "积极"
+    }
+  },
+  {
+    "id": "s13",
+    "text": "我一点压力都没有，日子过得挺悠闲。",
+    "expected": {
+      "stress_level": "低"
+    }
+  },
+  {
+    "id": "s14",
+    "text": "爸妈又催婚了，烦死了，真的好生气。",
+    "expected": {
+      "topic_preference": "家庭",
+      "family_relation": "紧张",
+      "emotion_tone": "消极"
+    }
+  },
+  {
+    "id": "s15",
+    "text": "我比较内向，但最近交到了几个知心朋友，挺开心的。",
+    "expected": {
+      "personality": "内向",
+      "social_circle": "少数密友"
+    }
+  }
+]

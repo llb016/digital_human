@@ -1,0 +1,6 @@
+{
+    "total_samples": 3,
+    "correct_samples": 2,
+    "accuracy": 0.6667,
+    "metric_name": "Accuracy (准确率)"
+}
