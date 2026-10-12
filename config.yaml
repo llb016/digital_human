@@ -6,6 +6,22 @@ temperature: 0.7
 # 情感识别模块
 emotion_threshold: 0.6
 
+# 情感识别模块可调参数（成员1；调参只改这里，不用改源码）
+# 置信度换算：confidence = min(emotion_confidence_base + 最高分 * emotion_confidence_coef, emotion_confidence_max)
+emotion_confidence_base: 0.5
+emotion_confidence_coef: 0.1
+emotion_confidence_max: 0.95
+# 没有任何情绪命中时的置信度
+emotion_unknown_confidence: 0.3
+# 情绪判定阈值：最高分低于该值直接判定为「未知」（1 = 至少要命中 1 个关键词）
+emotion_min_score: 1
+# 浮点比较容差：情绪分数并列改用 abs(a - b) < epsilon 判断，避免浮点 == 的精度风险
+emotion_score_epsilon: 1.0e-6
+# 关键词权重覆盖（未列出的情绪权重为 1）
+emotion_weights: {愤怒: 2, 悲伤: 2}
+# 情绪标签集（声明给全队：成员2 的标签漂移观测、主程序校验都用这一份）
+emotion_labels: [开心, 平静, 焦虑, 悲伤, 愤怒, 孤独, 疲惫, 未知]
+
 # 向量库 / 记忆模块
-embedding_model: "all-MiniLM-L6-v2"
+embedding_model: "./model/all-MiniLM-L6-v2"
 vector_db_path: "./memory_vector_db"
