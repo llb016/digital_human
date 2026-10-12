@@ -118,8 +118,9 @@ class LLMClient:
         self._tokenizer = AutoTokenizer.from_pretrained(self.model_path)
         self._model = AutoModelForCausalLM.from_pretrained(
             self.model_path,
-            **self._dtype_kwargs(),
-            device_map=self.device,  # "auto"：有 GPU 用 GPU，没有则 CPU
+            torch_dtype=torch.float32,  # 强制使用 float32 精度，CPU 上最快最稳
+            device_map="cpu",           # 强制全部加载到 CPU，禁止自动卸载到硬盘
+            low_cpu_mem_usage=False,    # 关闭内存优化，确保参数被真实加载
         )
         self._model.eval()
         self.loaded = True
