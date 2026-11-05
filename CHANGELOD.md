@@ -17,6 +17,7 @@
 - 【Mayonday】适配团队扁平配置格式：本模块只读读取 config.yaml（model_path / max_new_tokens / temperature / embedding_model / vector_db_path 等），存在 model_path 时自动启用本地 transformers 后端；不改动团队任何文件
 - 【林令镔】修正config.yaml模型相对路径：将model_path的`../`改为`./`，避免程序跑到D盘根目录查找Qwen2.5模型，修复模型目录找不到的报错
 - 【林令镔】通过ModelScope国内源下载all-MiniLM-L6-v2向量模型，修改embedding_model配置为本地模型路径，绕过HuggingFace，解决SSL证书验证失败问题，启用语义检索，改善记忆模块同义提问遗忘问题
+- 【林令镔】审查 PR #17（dev-eval）并重整合并：该分支基线落后 main 7 个 commit，直接合并会回退 config.yaml 的两处本地路径修复、删除成员2 的三个产物文件及 dev-captain.py；已重组为仅含有效增量（evaluate.py 真实调用模型、test_set.json 外置、backend 配置项），撤销对 modules/memory/src/llm_client.py 的硬编码加载改动（CPU 上 `_dtype_kwargs()` 已返回 fp32，硬编码 torch_dtype 反会绕过 transformers 5.x 改名适配），审查证据与后续待办见 `evaluation/docs/pr17_review.md`
 
 ## [v0.1.0] - 2026-10-08
 - 【林令镔】项目仓库初始化，搭建基础骨架，配置main分支保护规则
