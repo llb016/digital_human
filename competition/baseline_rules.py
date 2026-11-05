@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import zlib
 from pathlib import Path
 
 EMOTIONS = [
@@ -171,17 +172,70 @@ def predict_profile(sample: dict) -> dict:
     }
 
 
+DISTRESS = {"anxiety", "fear", "sadness", "helplessness", "loneliness", "shame", "anger", "disgust", "mixed"}
+
+OPENERS_DISTRESS = [
+    "这事儿压在身上的时候，脑子反复转是停不下来的，先别急着怪自己。",
+    "听起来你这段时间一直在硬扛，扛到现在才开口说，本身就已经很不容易了。",
+    "这种悬着的感觉最耗人——想使劲，却发现没有地方落。",
+]
+OPENERS_POSITIVE = [
+    "听你这么说，我这边也跟着松了一点。",
+    "能走到这一步，是你自己一点点撑出来的，不是运气。",
+    "这个变化挺值得记一下的，它说明你前面的力气没白费。",
+]
+FOLLOW_DISTRESS = {
+    "anxiety": "先把手里的事分成「今天必须动」和「可以先放着」两堆，只碰第一堆。",
+    "helplessness": "挑一件小到不可能失败的事先做，把「什么都改不了」这句话先破掉一个口子。",
+    "sadness": "不用急着振作，先允许自己低落一会儿，把难受说完整本身也是有作用的。",
+    "loneliness": "找一个具体的人，说一句具体的话，不一定是深聊，能接上就够。",
+    "anger": "先别在气头上做决定，把这口气写下来，等它退一点再想要不要回应。",
+    "shame": "这件事只说明你做了一个选择，不说明你这个人怎么样，别把两件事绑在一起。",
+    "fear": "把最怕的那个结果写具体，写出来通常会比在脑子里转的时候小一点。",
+    "mixed": "两种感觉同时存在是正常的，不用急着逼自己选一个立场。",
+}
+FOLLOW_DEFAULT = "先不用一次解决，把它拆小一点，挑最小的一步开始就行。"
+FOLLOW_POSITIVE = "顺着这个劲头，可以给自己留一句话，记下这次是怎么走过来的。"
+
+# 参考回复均值 158 字、中位 98 字，只写两句会短一半；中间补一段"把处境说清楚"的话，
+# 既补长度也补信息量，不是凑字。
+MIDDLES = [
+    "你现在的反应不是脆弱，是这件事本身就超出了一般人能轻松扛住的量。",
+    "很多人卡在这里，不是能力不够，而是既想做好又怕做不好，两股劲互相拉扯。",
+    "先把它当成一件需要处理的事，而不是一个关于你是什么样人的评价。",
+    "硬撑的人往往最后一个才承认累，你能说出来，说明你对自己的状态是有数的。",
+]
+MIDDLES_POSITIVE = [
+    "这段时间你大概一直在处理同一件事，能落下来是积累出来的结果。",
+    "这种踏实感值得被记住，下次再遇到类似的场面，它会是你手里的依据。",
+]
+QUESTIONS = [
+    "你现在最想先处理哪一块？",
+    "这件事里，哪一部分是你还动得了的？",
+    "如果只做一件小事让今晚好过一点，你会选什么？",
+]
+
+
+def _pick(options: list[str], seed: str) -> str:
+    return options[zlib.crc32(seed.encode("utf-8")) % len(options)]
+
+
 def build_response(sample: dict) -> str:
-    """结构对齐参考答案（2 段：先复述共情，再给一个可执行的落点 + 反问）。"""
-    text = last_user_text(sample).strip()
-    core = re.split(r"[。！？!?]", text)[0][:24]
-    if not core:
-        core = "你现在这样"
-    return (
-        f"{core}——这事儿压在身上，确实不好受，会反复想也很正常。\n\n"
-        "先不用急着把它一次解决。你现在最想先把哪一块卸下来：是眼前这件事怎么处理，"
-        "还是先让自己缓过来一点？"
-    )
+    """结构对齐参考答案（两段：接住情绪 + 可执行落点 + 一句反问），但**不复述用户原话**。
+
+    与 participant/rules_layer.py 的 fallback_response 保持一致。
+    """
+    emotion = predict_emotion(sample)
+    seed = sample.get("id") or "seed"
+    if emotion in DISTRESS:
+        opener = _pick(OPENERS_DISTRESS, seed + "o")
+        follow = FOLLOW_DISTRESS.get(emotion, FOLLOW_DEFAULT)
+        middle = _pick(MIDDLES, seed + "m")
+    else:
+        opener = _pick(OPENERS_POSITIVE, seed + "o")
+        follow = FOLLOW_POSITIVE
+        middle = _pick(MIDDLES_POSITIVE, seed + "m")
+    return f"{opener}{middle}\n\n{follow}{_pick(QUESTIONS, seed + 'q')}"
 
 
 def main() -> None:

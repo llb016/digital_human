@@ -193,3 +193,114 @@ v1 的画像 precision 只有 0.07~0.17，逐标签统计后原因很清楚—�
    两个任务性质不同，0.5B 分词性标注题大概率不如规则。需要先拿到模型在子集上的表现才能定权重。
 2. **P0 SFT 数据转换**：8338 对话 → 指令格式，`prediction_points.target` 直接当答案。
 3. **P1 子集评测**：100~200 条，模型 vs 规则 vs 混合，三选一。
+
+---
+
+## 2026-11-05 · R3 架构定型：生成与分类分离
+
+### 架构
+
+```
+输入 history
+   │
+   ├─→ Qwen 生成 response_text ──┐
+   │                             ├─→ rules_layer.postprocess() ─→ submission.jsonl
+   └─→ 规则判 emotion / profile ─┘
+```
+
+判断依据很直接：**这两个任务的成本结构不一样**。生成吃语言能力（要模型），分类吃标注分布（规则更准）。
+让 0.5B 在一个 prompt 里同时输出四类信息，结果是四样都做不好。
+
+### 支撑这个决定的实测
+
+**1. 0.5B 在官方 JSON prompt 下直接崩**
+
+同一条样本（`test_000000_t1`，用户说导师要求大改论文、只剩两周）分别用两种 prompt：
+
+| prompt | 输出 |
+|---|---|
+| 官方 JSON 约束 | `{"answer":"1"}` —— 直接放弃 |
+| 纯聊天、不要 JSON | “导师，我理解你的压力很大…希望你能保持冷静” —— 人称错乱，把用户当成导师 |
+
+**2. 它的回复还不如模板**
+
+3 条 val 样本上：模型生成字袋 F1 **0.272**、长度比 0.21、0 段分隔、无反问；
+模板 0.306、长度比 0.61。也就是说，在当前模型体量下**生成是负收益**。
+
+**3. 情绪与画像，规则全面胜出**
+
+| 维度 | 0.5B 零样本 | 规则 |
+|---|---|---|
+| user_profile macro-F1 | 0.000（全空=不得分） | 0.347 |
+| emotion acc | 约 0.30（基本靠猜先验） | 0.430 |
+
+### 落地实现
+
+**新增 `participant/rules_layer.py`**（零依赖、可直接进提交包）：
+`predict_emotion` / `predict_profile` / `fallback_response` / `postprocess`。
+
+**`participant/run_inference.py` 只加了三处，共 4 行**：
+
+```python
+# ① 导入区
+import rules_layer
+
+# ② 主循环里解析之后
+prediction, parse_failed = parse_prediction(sample["id"], decoded)
+# 生成与分类分离：回复保留模型输出，情绪与画像交给规则层
+prediction = rules_layer.postprocess(sample, prediction)
+
+# ③ 启动时打印当前策略，便于日志追溯
+print(f"规则后处理模式: {rules_layer.current_mode()} | 回复来源: {rules_layer.current_response_source()}", flush=True)
+```
+
+不改变任何官方产物的结构，不绕过 schema 校验。
+
+### 两个环境变量开关（用于消融实验，不用改代码）
+
+| 变量 | 取值 | 含义 |
+|---|---|---|
+| `HYBRID_MODE` | `off` / `emotion` / `profile` / `full` | 覆盖哪些字段，`full` 为默认 |
+| `RESPONSE_SOURCE` | `template` / `model` / `auto` | 回复从哪来。当前默认 `template`；`auto` 会在检测到「复读用户原话」时退回模板 |
+
+等 SFT 训出可用模型后，把 `RESPONSE_SOURCE=model` 即可切回，不需要改代码。
+
+### 兜底模板：不能复述，也不能三条一个样
+
+第一版模板拿用户原话开头，结果三条回复的开头都是用户自己的句子，一眼就看出是抄的。
+改成「开场（按情绪极性与 id 稳定选取）+ 中间层 + 落点 + 反问」的组装方式：
+
+- 9 类负向情绪共用 3 种开场，正向情绪用另外 3 种，避免“这个变化挺值得记一下 + 你现在的反应不是脆弱”这种错位
+- 中间层分正向/负向两套，负向再按 `anxiety`/`helplessness`/`sadness`/`loneliness`/`anger`/`shame`/`fear`/`mixed` 给不同落点
+- 选择用 `crc32(sample_id)`，同一输入永远同一句（可复现），不同样本之间又拉得开
+
+### val 2354 条最终数字
+
+| 指标 | 值 |
+|---|---|
+| 情绪 acc | 0.430 |
+| 情绪 macro-F1（全 16 类） | 0.333 |
+| 画像 macro-F1 | 0.347（interests 0.492 / personality 0.279 / style 0.271） |
+| 回复长度 | 111 字（参考答案 158，比值 0.70） |
+| 回复字袋 F1 | 0.276 |
+| 分段 / 含问号率 | 2.00 / 1.00（与参考答案结构一致） |
+
+**一个必须说明的取舍**：老模板的字袋 F1 是 0.306，比现在高 0.03 —— 因为它开头直接抄用户原话。
+字袋 F1 这个指标本身奖励复读，所以我没有为了这 0.03 把模板改回抄原话的样子。
+如果官方指标确实是字符重合类，这里会吃点亏；等拿 SFT 模型复测时再一起看。
+
+### 规则同步检查
+
+规则在 `participant/rules_layer.py`（提交包，必须自包含）和 `competition/baseline_rules.py`（离线评测）
+各存一份，新增 `competition/check_sync.py` 逐项比对 14 张表，不一致就报错退出：
+
+```
+$ python competition/check_sync.py
+规则一致（14 项全部匹配）
+```
+
+### 下一步
+
+1. **SFT 数据转换**：8338 对话 → 指令格式，`prediction_points.target` 直接当答案；先跑通数据管线与样本检查。
+2. **训练**：平台多卡环境，Qwen2.5-7B + LoRA。
+3. **复测**：同一套 `score.py`，把 `RESPONSE_SOURCE` 切到 `model` 前后各跑一次，量化生成到底值多少分。
