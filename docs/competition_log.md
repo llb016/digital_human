@@ -597,3 +597,27 @@ participant/          954 MB
 2. 情绪 0.430 是规则上限，剩余误差集中在 `relaxed`/`anxiety` 互判
 3. SFT 数据与训练脚本已就绪（`competition/prepare_sft.py`、`train_lora.py`），
    有 GPU 即可执行
+
+### 6.9 交付目录调整（2026-11-05 18:00）
+
+桌面上第一次拿到的 `数字人综合情感陪伴对话模型/` 是**官方下发的原始资料包**（数据集、
+样例数据、平台操作说明、participant 骨架），不是我们的交付物。此前为了跑通链路直接
+在它内部改，导致"官方资料"和"提交包"混在一起，交接时说不清哪部分是我们写的。
+
+现拆成两个目录：
+
+| 路径 | 性质 | 状态 |
+|---|---|---|
+| `桌面/数字人综合情感陪伴对话模型/` | 官方原始资料 | 已还原为原始状态，只读参考 |
+| `桌面/数字人情感陪伴-参赛提交包/` | 我方提交包 | 所有改动集中在此 |
+
+官方目录的还原项（逐条对应之前的改动）：
+
+1. 移除 `participant/rules_layer.py`（副本已在提交包内）
+2. `participant/run_inference.py` 去掉 3 处共 4 行插入，全文已无 `rules_layer` 引用，`py_compile` 通过
+3. `configs/inference_config.json`：`max_new_tokens` 回到 1200，`hardware_label` 置空
+4. 移出 `participant/model/`（954 MB 权重）
+
+提交包内重跑官方 3 条样例：规则层模式 `full`，解析失败 0/3，单条 3.67/5.61/12.62 s，
+中位 5.60 s，`submission.jsonl` 与 `performance_report.json` 均 PASS。与 §6.7 的历史
+数据同量级，说明文件搬迁未破坏链路。
