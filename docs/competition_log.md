@@ -454,3 +454,146 @@ python competition/train_lora.py --base-model Qwen/Qwen2.5-7B-Instruct \
 1. **上 GPU 训练**（需要能跑 7B 的机器；本机纯 CPU 无法验证训练本身）
 2. **复测**：`RESPONSE_SOURCE=model` 与本轮模板基线在同一套 `score.py` 上对比
 3. 如果 7B 的回复仍不如模板，退一步用 3B 或只微调 response_text 单字段（去掉 JSON 约束）
+
+---
+
+## 2026-11-05 · R5 提交包补齐与模板修正（发现一个"扩池子无效"的 bug）
+
+### 前提变化
+
+确认无 7B 训练条件，参赛定位调整为「能跑通、格式正确、分数不难看」。
+因此本轮不再推进 SFT，转向两件事：**提交包能否被主办方跑起来**、
+**回复在人工抽检时会不会露馅**。
+
+### 6.1 提交包缺了模型目录（致命）
+
+`configs/inference_config.json` 里 `model_path: "./model"`，但 `participant/model/`
+并不存在。主办方执行 `bash /root/participant/start.sh` 时，transformers 分支会在
+加载阶段直接抛 `FileNotFoundError`——**整个提交失败**，且 5 次提交机会里白费一次。
+
+已放入 Qwen2.5-0.5B-Instruct（954 MB，`model.safetensors` 988 MB）。
+
+顺带验证了路径解析方式：
+
+```python
+def model_path(config):
+    path = Path(config["model_path"])
+    resolved = path if path.is_absolute() else ROOT / path   # ROOT = 脚本所在目录
+```
+
+解析基准是 `ROOT` 而**不是 cwd**，所以从任何目录启动都能找到模型。
+实测从 `C:/Users/林` 启动，模型正常加载。这一点与我们仓库里
+`modules/memory/src/llm_client.py` 的行为不同（那边用 cwd 解析，
+从项目根启动会跑到 `D:/model/qwen2.5`），官方脚本这块是健壮的。
+
+### 6.2 生成参数
+
+`max_new_tokens` 1200 → 256。
+
+当前架构下回复由规则层产出，模型输出不参与最终结果。256 足够覆盖"切回模型生成"
+时的正常回复（参考答案中位 131 字 ≈ 81 token），单条耗时降到原来约 1/5。
+`hardware_label` 从占位符 `fill-in-before-official-run` 改为 `competition-runtime`。
+
+### 6.3 一个让"扩池子完全无效"的 bug
+
+模板选句用 `_pick(options, seed)`：
+
+```python
+return options[zlib.crc32(seed.encode("utf-8")) % len(options)]
+```
+
+看起来没问题。实测 2354 条里，**正向分支有 150 条首段一字不差**。
+第一反应是池子太小，于是把正向开场从 3 扩到 4、中间层从 2 扩到 4——
+**完全无效**，最高频首段仍是 150 次。
+
+继续查，问题在这里：
+
+```
+crc32(id+"o") % 4  与  crc32(id+"m") % 4  的联合分布：
+2000 个 id → 只有 4 种组合 ((0,0),(1,1),(2,2),(3,3))，各 500 次
+```
+
+**crc32 是线性函数**，后缀 `"o"`(0x6F) 与 `"m"`(0x6D) 只差 2，取模 4 后低两位相同，
+于是开场（后缀 o）和中间层（后缀 m）永远配套出现。理论上有 4×4=16 种首段组合，
+实际只有 4 种。
+
+改成 md5 取前 4 字节（有雪崩效应）后：
+
+| 版本 | 唯一首段 | 最高频首段 | 唯一完整回复 | 最高频完整回复 |
+|---|---|---|---|---|
+| v5 最初 | 18 | 165 次 | 282 | 47 次 |
+| v7 扩池子但未换哈希 | 24 | 150 次 | 447 | 46 次 |
+| **v8 换 md5** | **36** | **114 次** | **508** | **28 次** |
+
+重复率降约 40%，**各项指标完全不变**（情绪 0.430 / 画像 0.347 / 回复 111 字）——
+因为改的只是选择分布，不是内容池。
+
+这个 bug 的教训：**在"按 id 稳定采样"的场景里，不能用 crc32 派生多个互不相关的选择**。
+crc32 的线性性会让不同 salt 的选择强相关，而且它不会报错，只会让"看起来做了多样性设计"
+的代码实际只有 1/n 的效果。
+
+### 6.4 正向分支的反问与落点不匹配
+
+实测输出里出现过：
+
+> 「能走到这一步，是你自己一点点撑出来的，不是运气。……这种踏实感值得被记住……
+> **你现在最想先处理哪一块？**」
+
+前半句在肯定，后半句却在问"还有什么问题要处理"。原因是正向与负向共用
+`QUESTIONS`，而那三个反问都预设"还有待处理的困难"。
+
+修正两处：
+
+1. 新增 `QUESTIONS_POSITIVE`（3 个），正向分支单独用
+2. 正向落点从 1 句拆成按情绪 7 句（`relaxed`/`gratitude`/`pride`/`joy`/`neutral`/`care`/`surprise`），
+   同时把 `MIDDLES_POSITIVE` 从 2 扩到 4
+
+正向分支组合数从 4×2×1×3=24 提到 4×4×7×3=336。
+
+### 6.5 规则同步校验扩到 16 项
+
+`competition/check_sync.py` 的比对字段增加 `QUESTIONS_POSITIVE`、
+`FOLLOW_POSITIVE_BY_EMOTION`：
+
+```
+$ python competition/check_sync.py
+规则层一致（16 项全部匹配）
+SFT 提示词与枚举一致（EMOTIONS / PROFILE_LABELS / SYSTEM_PROMPT / conversation_text）
+```
+
+### 6.6 评审资料
+
+按官方 README「内部技术专家评审所需资料」要求，整理了四份文档
+（存放于比赛目录下的 `AI技术赛道-数字人综合情感对话模型-队名/`）：
+
+| 文件 | 内容 |
+|---|---|
+| `01_技术方案.md` | 任务理解、架构、规则层设计、为什么没做微调、提交包结构 |
+| `02_实验设计.md` | 评测集构造、指标定义与理由、基线设置、消融设计、复现方式 |
+| `03_实验报告.md` | 主结果、分项指标、失败分析、回复方案对比、结论与局限 |
+| `04_运行记录.md` | R1~R5 完整时间线、调优过程、提交包验证记录 |
+| `运行记录/` | 官方样例数据的实跑产物（submission.jsonl + performance_report.json） |
+
+文档里保留了两次自我修正（枚举写错、crc32 bug）的完整过程，不隐去。
+
+### 6.7 提交包最终状态
+
+```
+participant/          954 MB
+├── run_inference.py      官方 + 3 处插入共 4 行
+├── rules_layer.py        规则层（零依赖，新增）
+├── start.sh              官方脚本，未修改
+├── configs/              改 2 项（max_new_tokens / hardware_label）
+├── model/                Qwen2.5-0.5B（954 MB）
+├── requirements.txt
+└── templates/
+```
+
+已删除 `configs/inference_config.json.orig`（备份不应进提交包）。
+
+### 6.8 下一步（若继续）
+
+1. 回复多样性仍有 114 条共用首段（4.8%），纯模板方案的上限，需微调才能解决
+2. 情绪 0.430 是规则上限，剩余误差集中在 `relaxed`/`anxiety` 互判
+3. SFT 数据与训练脚本已就绪（`competition/prepare_sft.py`、`train_lora.py`），
+   有 GPU 即可执行
