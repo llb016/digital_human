@@ -1,6 +1,37 @@
 {
-    "total_samples": 3,
-    "correct_samples": 2,
-    "accuracy": 0.6667,
-    "metric_name": "Accuracy (准确率)"
+    "total": 5,
+    "correct": 3,
+    "accuracy": 0.6,
+    "details": [
+        {
+            "input": "今天天气真好，阳光明媚，心情很棒！",
+            "expected": "开心",
+            "predicted": "开心",
+            "is_correct": true
+        },
+        {
+            "input": "我最近总是失眠，感觉特别难过和孤独。",
+            "expected": "悲伤",
+            "predicted": "悲伤",
+            "is_correct": true
+        },
+        {
+            "input": "这个服务太差了，简直让人火大！",
+            "expected": "愤怒",
+            "predicted": "愤怒",
+            "is_correct": true
+        },
+        {
+            "input": "有点紧张，明天就要面试了。",
+            "expected": "恐惧",
+            "predicted": "焦虑",
+            "is_correct": false
+        },
+        {
+            "input": "哇！我居然中奖了，太意外了！",
+            "expected": "惊讶",
+            "predicted": "开心",
+            "is_correct": false
+        }
+    ]
 }

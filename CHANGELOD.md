@@ -8,6 +8,7 @@
 - 【Mayonday】新增用户画像+RAG记忆+对话生成模块（modules/memory/）：17维用户画像抽取、分层压缩的向量记忆库（解决长对话失忆）、4套数字人人设提示词、事实一致性防瞎编校验、统一对外接口 CompanionPipeline；含一键自测（75用例/10套件）、交互式对话入口 chat.py、检索阈值标定与模型体检脚本
 - 【Mayonday】module2 实验调优日志与自测报告（modules/memory/logs/，Iter 0~20 追加式留痕）
 - 【魏可欣】搭建自动评测系统骨架（evaluation/evaluate.py），完成配置加载、指标计算及报表输出，更新CHANGELOG
+- 【魏可欣】自动评测框架接入真实 Qwen 推理：标准测试集外置到 evaluation/data/test_set.json，跑通首轮 5 条基线（准确率 60%）；同轮暴露"焦虑""惊讶"两类的识别偏差，供情感识别模块后续调优
 
 ### Fixed
 - 【Mayonday】修复配置合并的浅拷贝别名缺陷：原实现会使 cfg 与全局默认值共享嵌套对象，导致同进程内多次加载配置互相污染（例如先建 A 实例再建 B 实例，B 会读到 A 的配置）
@@ -16,6 +17,7 @@
 - 【Mayonday】适配团队扁平配置格式：本模块只读读取 config.yaml（model_path / max_new_tokens / temperature / embedding_model / vector_db_path 等），存在 model_path 时自动启用本地 transformers 后端；不改动团队任何文件
 - 【林令镔】修正config.yaml模型相对路径：将model_path的`../`改为`./`，避免程序跑到D盘根目录查找Qwen2.5模型，修复模型目录找不到的报错
 - 【林令镔】通过ModelScope国内源下载all-MiniLM-L6-v2向量模型，修改embedding_model配置为本地模型路径，绕过HuggingFace，解决SSL证书验证失败问题，启用语义检索，改善记忆模块同义提问遗忘问题
+- 【林令镔】审查 PR #17（dev-eval）并重整合并：该分支基线落后 main 7 个 commit，直接合并会回退 config.yaml 的两处本地路径修复、删除成员2 的三个产物文件及 dev-captain.py；已重组为仅含有效增量（evaluate.py 真实调用模型、test_set.json 外置、backend 配置项），撤销对 modules/memory/src/llm_client.py 的硬编码加载改动（CPU 上 `_dtype_kwargs()` 已返回 fp32，硬编码 torch_dtype 反会绕过 transformers 5.x 改名适配），审查证据与后续待办见 `evaluation/docs/pr17_review.md`
 
 ## [v0.1.0] - 2026-10-08
 - 【林令镔】项目仓库初始化，搭建基础骨架，配置main分支保护规则

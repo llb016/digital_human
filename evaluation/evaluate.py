@@ -1,71 +1,98 @@
-import yaml
-import json
 import os
+import sys
+import json
+import yaml
 
-# 1. 读取配置文件 (升级版：自动定位项目根目录)
-def load_config():
-    # 获取当前脚本所在文件夹的上一级目录（也就是 digital_human 的根目录）
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    config_path = os.path.join(base_dir, "config.yaml")
-    
+# ========== 1. 路径规范设置（作为“代码规范总负责”，这是必修课） ==========
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 把成员2的 src 目录加入系统路径，这样我们就能直接 import 他的工具了
+sys.path.append(os.path.join(BASE_DIR, "modules", "memory", "src"))
+
+# 导入成员2的 LLM 客户端（如果报错找不到，请检查上一行路径是否正确）
+try:
+    from llm_client import LLMClient
+except ImportError as e:
+    print("❌ 导入失败：找不到成员2的 llm_client.py，请检查 sys.path 设置。")
+    raise e
+
+# ========== 2. 加载配置和模型 ==========
+def load_config_and_client():
+    config_path = os.path.join(BASE_DIR, "config.yaml")
     with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
-    print(f"✅ 成功加载配置文件: {config_path}")
-    return config, base_dir
+    
+    print("⏳ 正在初始化大模型客户端...（如果本地加载，首次可能需要几分钟，请耐心等待）")
+    # 将整个 config 字典传给成员2的类，它会自动读取 model_path 和 max_new_tokens
+    client = LLMClient(config)
+    return config, client
 
-# 2. 模拟评测逻辑（先不加载真实大模型，防止电脑卡死）
-def run_evaluation():
-    print("⏳ 开始读取固定标准测试集...")
+# ========== 3. 执行评测主循环 ==========
+def run_evaluation(client):
+    test_path = os.path.join(BASE_DIR, "evaluation", "data", "test_set.json")
+    with open(test_path, 'r', encoding='utf-8') as f:
+        test_cases = json.load(f)
     
-    # 这里模拟我们的测试集和模型预测结果
-    test_cases = [
-        {"input": "今天天气真好", "expected": "开心", "predicted": "开心"},
-        {"input": "我好难过啊", "expected": "悲伤", "predicted": "悲伤"},
-        {"input": "这个电影太无聊了", "expected": "厌恶", "predicted": "愤怒"}, # 故意模拟一个预测错误
-    ]
-    
-    print(f"📊 测试集共加载了 {len(test_cases)} 条数据，开始计算指标...")
+    print(f"📊 加载标准测试集成功，共 {len(test_cases)} 条数据，开始推理...")
     
     correct = 0
-    for case in test_cases:
-        if case["expected"] == case["predicted"]:
-            correct += 1
+    detailed_results = []
+    
+    for i, case in enumerate(test_cases, 1):
+        # 构造发给 Qwen 的提示词，要求它只输出情感词
+        prompt = f"你是一个情感分类器。请判断以下句子的情感，严格从这些词中选择一个输出（开心、悲伤、愤怒、恐惧、惊讶、厌恶、平静）。不要输出任何解释或标点，只输出一个词。\n\n句子：{case['input']}"
+        messages = [{"role": "user", "content": prompt}]
+        
+        try:
+            print(f"  [{i}/{len(test_cases)}] 正在预测: {case['input'][:10]}...")
+            # 真实调用大模型
+            prediction = client.chat(messages, temperature=0.1, max_tokens=10)
             
-    accuracy = correct / len(test_cases)
-    result = {
-        "total_samples": len(test_cases),
-        "correct_samples": correct,
+            # 简单匹配逻辑（只要预期词出现在模型回复中就判定正确）
+            is_correct = case['expected'] in prediction
+            if is_correct:
+                correct += 1
+                
+            detailed_results.append({
+                "input": case["input"],
+                "expected": case["expected"],
+                "predicted": prediction.strip(),
+                "is_correct": is_correct
+            })
+        except Exception as e:
+            print(f"  ❌ 第 {i} 条预测失败: {e}")
+            detailed_results.append({
+                "input": case["input"], "expected": case["expected"], 
+                "predicted": "ERROR", "is_correct": False
+            })
+
+    accuracy = correct / len(test_cases) if test_cases else 0
+    report = {
+        "total": len(test_cases),
+        "correct": correct,
         "accuracy": round(accuracy, 4),
-        "metric_name": "Accuracy (准确率)"
+        "details": detailed_results
     }
-    return result
+    return report
 
-# 3. 生成评测报表并保存 (升级版：无论在哪运行，都存到 evaluation 文件夹下)
-def save_report(result, base_dir):
-    report_dir = os.path.join(base_dir, "evaluation")
-    os.makedirs(report_dir, exist_ok=True) # 确保文件夹存在
-    report_path = os.path.join(report_dir, "evaluation_report.json")
-    
+# ========== 4. 保存报表 ==========
+def save_report(report):
+    report_path = os.path.join(BASE_DIR, "evaluation", "evaluation_report.json")
     with open(report_path, "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)
-    print(f"🎉 评测报表已生成，保存在: {report_path}")
+        json.dump(report, f, ensure_ascii=False, indent=4)
+    print(f"🎉 评测完成！报表已保存至: {report_path}")
 
-# 4. 主流程（一键运行入口）
+# ========== 5. 一键运行入口 ==========
 if __name__ == "__main__":
-    print("========== 自动评测系统启动 ==========")
+    print("========== 团队自动评测系统 V1.0 ==========")
+    config, client = load_config_and_client()
     
-    # 第一步：读配置（返回配置字典和项目根目录）
-    config, project_root = load_config()
-    print(f"当前使用的模型路径为: {config.get('model_path')}")
+    # 可选：如果想让模型提前加载好，可以调用 client.warmup()，这里我们让它在第一条数据时自动加载
     
-    # 第二步：跑评测
-    result = run_evaluation()
+    report = run_evaluation(client)
+    save_report(report)
     
-    # 第三步：输出分数
     print("========== 评测结果 ==========")
-    print(f"测试指标: {result['metric_name']}")
-    print(f"准确率: {result['accuracy'] * 100}% ({result['correct_samples']}/{result['total_samples']})")
-    
-    # 第四步：存报表
-    save_report(result, project_root)
-    print("========== 评测结束 ==========")
+    print(f"总样本数: {report['total']}")
+    print(f"正确数: {report['correct']}")
+    print(f"准确率: {report['accuracy'] * 100}%")
+    print("==============================")
