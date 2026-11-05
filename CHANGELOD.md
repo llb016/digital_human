@@ -22,5 +22,10 @@
 - 【林令镔】通过ModelScope国内源下载all-MiniLM-L6-v2向量模型，修改embedding_model配置为本地模型路径，绕过HuggingFace，解决SSL证书验证失败问题，启用语义检索，改善记忆模块同义提问遗忘问题
 - 【林令镔】审查 PR #17（dev-eval）并重整合并：该分支基线落后 main 7 个 commit，直接合并会回退 config.yaml 的两处本地路径修复、删除成员2 的三个产物文件及 dev-captain.py；已重组为仅含有效增量（evaluate.py 真实调用模型、test_set.json 外置、backend 配置项），撤销对 modules/memory/src/llm_client.py 的硬编码加载改动（CPU 上 `_dtype_kwargs()` 已返回 fp32，硬编码 torch_dtype 反会绕过 transformers 5.x 改名适配），审查证据与后续待办见 `evaluation/docs/pr17_review.md`
 
+- 【林令镔】新增 SFT 数据管线 `competition/prepare_sft.py`：训练集 8338 对话 / 18657 标注点展开为 17286 条 messages 格式（train 17065 / dev 221，按 conversation_id 切分防泄漏），含回复过短与超长过滤、去重、画像标签越界剔除；标签枚举与提示词逐项对齐官方脚本（16 类情绪 / 10-12-11 类画像），训练目标经官方 `parse_prediction()` 复验 400 条零失败零改写
+- 【林令镔】新增 `competition/train_lora.py`：Qwen2.5 + LoRA 训练脚本，`--dry-run` 可在无 GPU 机器上校验分词与 mask 对齐（实测 500 条零丢弃，监督区仅含 assistant 目标）；mask 边界用 chat template 两次渲染求差而非字符串切分
+- 【林令镔】`competition/check_sync.py` 扩展：新增 SFT 数据脚本与官方 `run_inference.py` 的枚举、系统提示词、对话拼接格式四项一致性校验——第一版枚举曾按通用情感体系写错 28 类，此类错误训练期无报错、提交时标签被静默丢弃
+- 【林令镔】中文 token 预算实测留档：Qwen2.5 分词器 0.62 token/字符（非经验值 1.5），合计 p99=3712、max=4663，`max_length=4096` 仅超限 0.3%，已作为训练脚本默认值；`docs/competition_log.md` 追加 R4 完整记录
+
 ## [v0.1.0] - 2026-10-08
 - 【林令镔】项目仓库初始化，搭建基础骨架，配置main分支保护规则

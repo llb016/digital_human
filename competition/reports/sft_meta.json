@@ -1,0 +1,183 @@
+{
+  "system_prompt": "你正在参加数字情感陪伴比赛。根据截止到最新用户消息的对话历史，完成下一轮 Assistant 回复预测。\n\n只输出一个 JSON object，不要输出 Markdown 或解释。object 必须且只能包含：\n- response_text: 非空中文回复，应自然、贴合上下文和用户偏好；\n- emotion_label: 最新用户消息的情绪，只能从 anger, anxiety, care, disgust, fear, gratitude, helplessness, joy, loneliness, mixed, neutral, pride, relaxed, sadness, shame, surprise 中选择；\n- user_profile: object，包含 personality_traits、interests、style 三个字符串数组；\n- memory_refs: 固定输出 []，因为测试集没有公开 memory bank。\n\n画像标签只能使用以下枚举；没有充分证据时宁可输出空数组：\npersonality_traits: agreeable, assertive, casual, conservative, emotionally_stable, extroverted, high_conscientiousness, introverted, open, sensitive\ninterests: art_design, career_development, film_animation, games, music, pets, programming_technology, reading_writing, social, sports_fitness, study_exam, travel_outdoor\nstyle: brief, colloquial, detailed, direct, emoji_user, formal, high_emotional_expression, humorous, indirect, low_emotional_expression, rational\n",
+  "emotions": [
+    "anger",
+    "anxiety",
+    "care",
+    "disgust",
+    "fear",
+    "gratitude",
+    "helplessness",
+    "joy",
+    "loneliness",
+    "mixed",
+    "neutral",
+    "pride",
+    "relaxed",
+    "sadness",
+    "shame",
+    "surprise"
+  ],
+  "profile_labels": {
+    "personality_traits": [
+      "agreeable",
+      "assertive",
+      "casual",
+      "conservative",
+      "emotionally_stable",
+      "extroverted",
+      "high_conscientiousness",
+      "introverted",
+      "open",
+      "sensitive"
+    ],
+    "interests": [
+      "art_design",
+      "career_development",
+      "film_animation",
+      "games",
+      "music",
+      "pets",
+      "programming_technology",
+      "reading_writing",
+      "social",
+      "sports_fitness",
+      "study_exam",
+      "travel_outdoor"
+    ],
+    "style": [
+      "brief",
+      "colloquial",
+      "detailed",
+      "direct",
+      "emoji_user",
+      "formal",
+      "high_emotional_expression",
+      "humorous",
+      "indirect",
+      "low_emotional_expression",
+      "rational"
+    ]
+  },
+  "counts": {
+    "conversations": 8338,
+    "points_total": 18657,
+    "kept": 17286,
+    "train": 17065,
+    "dev": 221,
+    "dropped": {
+      "short_response": 653,
+      "too_long": 718
+    },
+    "profile_trimmed": 0
+  },
+  "length": {
+    "prompt_chars": {
+      "p50": 887,
+      "p90": 2695,
+      "p99": 4815,
+      "max": 5392
+    },
+    "response_chars": {
+      "p10": 46,
+      "p50": 130,
+      "p90": 470,
+      "max": 1786
+    },
+    "note": "字符数仅作参考，真实上下文预算看下面的 tokens 段（实测 0.62 token/字符）"
+  },
+  "tokens": {
+    "status": "ok",
+    "tokenizer": "D:\\digital_human\\model\\qwen2.5",
+    "sampled": 2000,
+    "system_prompt_tokens": 279,
+    "prompt_tokens": {
+      "p50": 555,
+      "p90": 1799,
+      "p95": 2327,
+      "p99": 3036,
+      "max": 3708
+    },
+    "answer_tokens": {
+      "p50": 122,
+      "p90": 364,
+      "p95": 539,
+      "p99": 907,
+      "max": 1161
+    },
+    "total_tokens": {
+      "p50": 710,
+      "p90": 2074,
+      "p95": 2650,
+      "p99": 3439,
+      "max": 4256
+    },
+    "over_limit_pct": {
+      "2048": 10.35,
+      "3072": 2.4,
+      "4096": 0.05,
+      "6144": 0.0,
+      "8192": 0.0
+    },
+    "note": "total_tokens 不含 system prompt；训练时 max_length 需加上 system_prompt_tokens"
+  },
+  "label_distribution": {
+    "emotion": {
+      "anxiety": 6037,
+      "relaxed": 2561,
+      "helplessness": 1477,
+      "fear": 1271,
+      "sadness": 990,
+      "mixed": 889,
+      "loneliness": 825,
+      "anger": 740,
+      "shame": 710,
+      "gratitude": 582,
+      "neutral": 576,
+      "pride": 223,
+      "joy": 153,
+      "disgust": 120,
+      "care": 74,
+      "surprise": 58
+    },
+    "personality_traits": {
+      "sensitive": 4789,
+      "high_conscientiousness": 2111,
+      "conservative": 1303,
+      "introverted": 667,
+      "assertive": 624,
+      "agreeable": 348,
+      "emotionally_stable": 314,
+      "open": 53,
+      "extroverted": 36,
+      "casual": 27
+    },
+    "interests": {
+      "career_development": 1371,
+      "study_exam": 716,
+      "social": 710,
+      "pets": 694,
+      "games": 649,
+      "sports_fitness": 590,
+      "art_design": 311,
+      "reading_writing": 293,
+      "travel_outdoor": 138,
+      "music": 121,
+      "film_animation": 97,
+      "programming_technology": 66
+    },
+    "style": {
+      "rational": 4192,
+      "direct": 2419,
+      "brief": 1064,
+      "detailed": 1040,
+      "high_emotional_expression": 891,
+      "colloquial": 623,
+      "indirect": 496,
+      "formal": 128,
+      "humorous": 80,
+      "emoji_user": 24,
+      "low_emotional_expression": 2
+    }
+  }
+}

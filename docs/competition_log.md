@@ -304,3 +304,153 @@ $ python competition/check_sync.py
 1. **SFT 数据转换**：8338 对话 → 指令格式，`prediction_points.target` 直接当答案；先跑通数据管线与样本检查。
 2. **训练**：平台多卡环境，Qwen2.5-7B + LoRA。
 3. **复测**：同一套 `score.py`，把 `RESPONSE_SOURCE` 切到 `model` 前后各跑一次，量化生成到底值多少分。
+
+---
+
+## 2026-11-05 · R4 SFT 数据管线（18657 → 17286 条，官方解析器零失败）
+
+### 目标
+
+R3 把规则基线定在 0.430 / 0.347，同时确认了 0.5B 生成是负收益。分数再往上只剩
+一条路：拿 8338 个带标注对话做监督微调。本轮先做数据，不做训练。
+
+### 新增工具
+
+| 文件 | 作用 |
+|---|---|
+| `competition/prepare_sft.py` | 训练集展开成 messages 格式（system / user / assistant），含过滤、去重、画像标签越界剔除、token 实测 |
+| `competition/train_lora.py` | Qwen2.5 + LoRA 训练脚本；`--dry-run` 可在无 GPU 机器上校验分词与 mask 对齐 |
+| `competition/reports/sft_preview.md` | 数据预览（3 条完整 + 8 条摘要），每次跑自动重生成 |
+
+### 结果
+
+```
+对话数 8338 / 标注点 18657 -> 保留 17286（92.6%）
+  train 17065 条   dev 221 条（按 conversation_id 切，防同对话跨 split）
+  过滤: short_response 653, too_long 718
+```
+
+丢弃的两类：回复短于 20 字（3.5%）、user 侧超 5400 字符（3.8%，多轮长对话）。
+没有做"回复太长"的过滤——参考回复 P90 是 470 字，长回复本身是有效信息。
+
+### 一个差点埋进去的错：枚举凭记忆写成了通用情感体系
+
+第一版脚本里我按通用情感分类写了 28 类情绪（`admiration` / `amusement` / `caring` …）
+和 25/15/8 类画像标签。全部是错的。从官方脚本取值后是：
+
+```
+EMOTIONS 16 类：anger anxiety care disgust fear gratitude helplessness joy
+                loneliness mixed neutral pride relaxed sadness shame surprise
+personality_traits 10 类 / interests 12 类 / style 11 类
+```
+
+这套体系不是任何通用情感集：`relaxed`、`helplessness`、`loneliness`、`mixed`
+是标注自有的类。**写错的后果是静默的**——训练照跑、loss 照降，但模型学的标签
+在提交时会被 `normalize_prediction` 全部丢弃，一分不得。
+
+所以 `check_sync.py` 扩了一项校验：把 `prepare_sft.py` 的 `EMOTIONS`、
+`PROFILE_LABELS`、`SYSTEM_PROMPT` 与官方 `run_inference.py` 逐项比对，
+再用一段探针文本校验 `conversation_text()` 的拼接格式：
+
+```
+$ python competition/check_sync.py
+规则层一致（14 项全部匹配）
+SFT 提示词与枚举一致（EMOTIONS / PROFILE_LABELS / SYSTEM_PROMPT / conversation_text）
+```
+
+### token 预算：实测 0.62 token/字符，不是常识里的 1.5
+
+用官方分词器（`model/qwen2.5` 的 Qwen2Tokenizer）在 2000 条采样上实测：
+
+| 项 | p50 | p90 | p95 | p99 | max |
+|---|---|---|---|---|---|
+| user 侧 | 555 | 1764 | 2413 | 3338 | 3964 |
+| assistant 侧 | 121 | 370 | 534 | 927 | 1168 |
+| 合计（不含 system 279） | 715 | 2033 | 2756 | 3712 | 4663 |
+
+| max_length | 超限占比 |
+|---|---|
+| 2048 | 9.8% |
+| 3072 | 3.1% |
+| **4096** | **0.3%** |
+| 6144 | 0.0% |
+
+结论：**max_length=4096**，只丢 0.3%。这也是 `--max-prompt-chars` 从 6000 收到
+5400 的依据（5400 字 ≈ 3350 token，加 system 279 + 回复 120 ≈ 3750，留余量）。
+
+中文 token/字符比必须实测。按经验值 1.5 估会高估一倍以上，进而把 max_length
+设得过大、显存爆掉，或者反过来把正常样本误判成超长丢掉。
+
+### 训练目标通过官方解析器验证
+
+把 400 条 assistant 目标原文喂给官方的 `parse_prediction()`：
+
+```
+样本 400 条：解析失败 0，情绪标签被改写 0，画像被改写 0
+```
+
+这条验证的意义：训练目标和线上校验是同一套代码，不存在"训练时是一套格式、
+提交时另一套"的风险。`emotion_label` 和 `user_profile` 在训练目标里都保留真值，
+虽然 R3 的架构会在推理时用规则覆盖它们——保留是为了格式完整（少字段会触发
+`normalize_prediction` 兜底），且 `HYBRID_MODE=off` 时可随时切回全模型。
+
+### mask 对齐验证（本机可跑）
+
+`train_lora.py --dry-run`，500 条采样：
+
+```
+dry-run: 读入 500 条，可用 500 条，超长丢弃 0 条（max_length=4096）
+  每条实际训练的 label token: p50=142 p95=663 max=934
+  第 1 条监督区开头: {"response_text":"明白，先不谈怎么办。\n\n就是那种别扭..."
+```
+
+mask 边界用 chat template 两次渲染求差（`full` 与 `prompt + generation_prompt`），
+不靠字符串搜索——Qwen 模板在 assistant 回合后插 `<|im_end|>`，字符串切容易错一位。
+错一位的后果是模型学会复述 prompt，loss 看着正常但推理跑偏。
+
+### 数据质量：参考回复里有一个模板永远学不会的东西
+
+预览里第 1 条值得单独说。用户在多轮之后说：
+
+> 先别给我分析要怎么观察或者权衡了，我现在其实不太想听这些建议。
+
+参考答案（中位 131 字，两段）：
+
+> 明白，先不谈怎么办。
+>
+> 就是那种别扭：一冷下来，就不只是两个人之间的事，连自己在这圈子里是不是还站得住，
+> 都跟着晃了一下。这种发虚的感觉本身就够难受的。
+
+三件事同时做到了：**承认上一轮的失误**（不辩解）、**放弃给建议**（尊重用户的元反馈）、
+**把模糊感受命名出来**（"连自己在这圈子里是不是还站得住"）。
+
+R3 的模板做不到第一条和第二条——它是无状态的组装器，看不见上一轮说了什么、
+也读不出"用户不想被建议"。这是 SFT 相对模板的核心收益，也是复测时要重点看的
+东西：不只看字袋 F1，还要看模型有没有学会"该闭嘴时闭嘴"。
+
+### 训练配置（待 GPU 机器执行）
+
+| 项 | 值 | 依据 |
+|---|---|---|
+| 基座 | Qwen2.5-7B-Instruct | 0.5B/1.5B 已验证不可用；赛道 `start.sh` 默认 `--tensor-parallel-size 2`，多卡 |
+| 方法 | LoRA r=16, alpha=32, dropout=0.05 | 全参微调在比赛时限内不现实 |
+| target_modules | q/k/v/o + gate/up/down | 覆盖注意力与 MLP，可训参数约 1% |
+| max_length | 4096 | 实测超限 0.3% |
+| epochs | 3 | 17k 样本 × 3 轮；用 dev 221 条早停 |
+| lr | 1e-4，OneCycle | LoRA 常用区间，不设 warmup 长尾 |
+
+训练命令：
+
+```bash
+python competition/train_lora.py --base-model Qwen/Qwen2.5-7B-Instruct \
+    --out competition/lora_out --epochs 3
+```
+
+导出后 `merge_and_unload()` 合并成一个完整权重目录，直接替换 `participant/model`
+即可，`run_inference.py` 的 transformers 后端不用改。
+
+### 下一步
+
+1. **上 GPU 训练**（需要能跑 7B 的机器；本机纯 CPU 无法验证训练本身）
+2. **复测**：`RESPONSE_SOURCE=model` 与本轮模板基线在同一套 `score.py` 上对比
+3. 如果 7B 的回复仍不如模板，退一步用 3B 或只微调 response_text 单字段（去掉 JSON 约束）
