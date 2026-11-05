@@ -1,0 +1,190 @@
+{
+  "n_gold": 2354,
+  "n_sub": 2354,
+  "n_matched": 2354,
+  "n_missing_id": 0,
+  "emotion": {
+    "accuracy": 0.4303,
+    "macro_f1_seen": 0.3328,
+    "macro_f1_all16": 0.3328,
+    "per_class": {
+      "anxiety": {
+        "p": 0.4559,
+        "r": 0.6325,
+        "f1": 0.5298,
+        "n": 751
+      },
+      "relaxed": {
+        "p": 0.3714,
+        "r": 0.4132,
+        "f1": 0.3912,
+        "n": 409
+      },
+      "mixed": {
+        "p": 0.2143,
+        "r": 0.1017,
+        "f1": 0.1379,
+        "n": 177
+      },
+      "helplessness": {
+        "p": 0.3377,
+        "r": 0.3662,
+        "f1": 0.3514,
+        "n": 142
+      },
+      "sadness": {
+        "p": 0.5476,
+        "r": 0.3511,
+        "f1": 0.4279,
+        "n": 131
+      },
+      "fear": {
+        "p": 0.2911,
+        "r": 0.5,
+        "f1": 0.368,
+        "n": 124
+      },
+      "gratitude": {
+        "p": 0.6173,
+        "r": 0.4237,
+        "f1": 0.5025,
+        "n": 118
+      },
+      "shame": {
+        "p": 0.6203,
+        "r": 0.4153,
+        "f1": 0.4975,
+        "n": 118
+      },
+      "loneliness": {
+        "p": 0.5652,
+        "r": 0.2261,
+        "f1": 0.323,
+        "n": 115
+      },
+      "anger": {
+        "p": 0.6984,
+        "r": 0.3826,
+        "f1": 0.4944,
+        "n": 115
+      },
+      "neutral": {
+        "p": 0.0,
+        "r": 0.0,
+        "f1": 0.0,
+        "n": 53
+      },
+      "pride": {
+        "p": 1.0,
+        "r": 0.025,
+        "f1": 0.0488,
+        "n": 40
+      },
+      "disgust": {
+        "p": 0.5,
+        "r": 0.2381,
+        "f1": 0.3226,
+        "n": 21
+      },
+      "joy": {
+        "p": 0.35,
+        "r": 0.35,
+        "f1": 0.35,
+        "n": 20
+      },
+      "care": {
+        "p": 0.0,
+        "r": 0.0,
+        "f1": 0.0,
+        "n": 11
+      },
+      "surprise": {
+        "p": 0.4091,
+        "r": 1.0,
+        "f1": 0.5806,
+        "n": 9
+      }
+    },
+    "top_confusions": [
+      {
+        "gold": "relaxed",
+        "pred": "anxiety",
+        "n": 171
+      },
+      {
+        "gold": "anxiety",
+        "pred": "relaxed",
+        "n": 95
+      },
+      {
+        "gold": "anxiety",
+        "pred": "fear",
+        "n": 69
+      },
+      {
+        "gold": "mixed",
+        "pred": "anxiety",
+        "n": 69
+      },
+      {
+        "gold": "helplessness",
+        "pred": "anxiety",
+        "n": 51
+      },
+      {
+        "gold": "sadness",
+        "pred": "anxiety",
+        "n": 47
+      },
+      {
+        "gold": "fear",
+        "pred": "anxiety",
+        "n": 45
+      },
+      {
+        "gold": "loneliness",
+        "pred": "anxiety",
+        "n": 44
+      }
+    ],
+    "empty_pred": 0
+  },
+  "profile": {
+    "personality_traits": {
+      "micro_p": 0.2069,
+      "micro_r": 0.4261,
+      "micro_f1": 0.2785,
+      "exact_match": 0.1296,
+      "pred_empty": 0
+    },
+    "interests": {
+      "micro_p": 0.48,
+      "micro_r": 0.5039,
+      "micro_f1": 0.4917,
+      "exact_match": 0.7307,
+      "pred_empty": 1704
+    },
+    "style": {
+      "micro_p": 0.2651,
+      "micro_r": 0.2761,
+      "micro_f1": 0.2705,
+      "exact_match": 0.3492,
+      "pred_empty": 977
+    },
+    "_overall": {
+      "macro_f1": 0.3469,
+      "mean_exact": 0.4032
+    }
+  },
+  "response": {
+    "pred_len_mean": 111.7,
+    "pred_len_median": 113.0,
+    "gold_len_mean": 158.2,
+    "gold_len_median": 98.5,
+    "length_ratio": 0.706,
+    "char_f1_mean": 0.2761,
+    "avg_segments": 2,
+    "ask_rate": 1.0,
+    "empty_pred": 0
+  }
+}

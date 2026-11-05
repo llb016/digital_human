@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import zlib
+import hashlib
 from pathlib import Path
 
 EMOTIONS = [
@@ -178,11 +178,14 @@ OPENERS_DISTRESS = [
     "这事儿压在身上的时候，脑子反复转是停不下来的，先别急着怪自己。",
     "听起来你这段时间一直在硬扛，扛到现在才开口说，本身就已经很不容易了。",
     "这种悬着的感觉最耗人——想使劲，却发现没有地方落。",
+    "你说的这些我接住了。不急着解决，先把这口气顺过来。",
+    "这种状态拖久了会累人，你能把它讲出来，说明你还没打算就这么耗下去。",
 ]
 OPENERS_POSITIVE = [
     "听你这么说，我这边也跟着松了一点。",
     "能走到这一步，是你自己一点点撑出来的，不是运气。",
     "这个变化挺值得记一下的，它说明你前面的力气没白费。",
+    "嗯，这个转向挺重要的。从你讲的方式里能听出来，你是真的想通了点什么。",
 ]
 FOLLOW_DISTRESS = {
     "anxiety": "先把手里的事分成「今天必须动」和「可以先放着」两堆，只碰第一堆。",
@@ -196,6 +199,17 @@ FOLLOW_DISTRESS = {
 }
 FOLLOW_DEFAULT = "先不用一次解决，把它拆小一点，挑最小的一步开始就行。"
 FOLLOW_POSITIVE = "顺着这个劲头，可以给自己留一句话，记下这次是怎么走过来的。"
+# 正向情绪共用一个落点时，2354 条里有 150 条首段完全一样（实测），
+# 因为正向分支的组合数只有 4×2×1×3=24。按情绪细分后组合数 ×7，且句子更贴合。
+FOLLOW_POSITIVE_BY_EMOTION = {
+    "relaxed": "不用急着回到紧绷的状态里，让这个松下来的感觉多待一会儿。",
+    "gratitude": "被人接住的感觉会留下来，你以后大概也会想这样接住别人。",
+    "pride": "这份是你自己挣来的，承认它不叫自满。",
+    "joy": "这种高兴值得被说出来，不必急着收着。",
+    "neutral": "平稳本身也是一种进展，不一定非得有大起大落才算数。",
+    "care": "你愿意为别人花这份心力，说明你在意的人和事都还很清楚。",
+    "surprise": "有些变化就是这样突然来的，先接住它，不用急着解释。",
+}
 
 # 参考回复均值 158 字、中位 98 字，只写两句会短一半；中间补一段"把处境说清楚"的话，
 # 既补长度也补信息量，不是凑字。
@@ -208,16 +222,32 @@ MIDDLES = [
 MIDDLES_POSITIVE = [
     "这段时间你大概一直在处理同一件事，能落下来是积累出来的结果。",
     "这种踏实感值得被记住，下次再遇到类似的场面，它会是你手里的依据。",
+    "能讲出这个变化，说明你对自己的状态是有感觉的，不只是被推着走。",
+    "不是所有人都会停下来留意这种转变，你留意到了。",
 ]
 QUESTIONS = [
     "你现在最想先处理哪一块？",
     "这件事里，哪一部分是你还动得了的？",
     "如果只做一件小事让今晚好过一点，你会选什么？",
 ]
+# 正向情绪必须用另一套反问：上面三个都预设「还有问题要处理」，
+# 配在「这种踏实感值得被记住」后面会自相矛盾（实测出现过「值得记住 + 最想先处理哪一块」）。
+QUESTIONS_POSITIVE = [
+    "这种踏实的感觉，你最想先用在哪儿？",
+    "接下来有什么是你想趁着这个状态去做的？",
+    "这个变化，你身边的人注意到了吗？",
+]
 
 
 def _pick(options: list[str], seed: str) -> str:
-    return options[zlib.crc32(seed.encode("utf-8")) % len(options)]
+    """按样本 id 稳定选择。
+
+    必须用 md5 而非 zlib.crc32：crc32 线性，crc32(id+"o") 与 crc32(id+"m")
+    取模后完全同余（2000 个 id 的联合分布只有 4 种组合而非 16 种），
+    会导致开场与中间层永远配套出现，扩池子无效。详见 rules_layer.py 同名函数。
+    """
+    digest = hashlib.md5(seed.encode("utf-8")).digest()
+    return options[int.from_bytes(digest[:4], "big") % len(options)]
 
 
 def build_response(sample: dict) -> str:
@@ -231,11 +261,13 @@ def build_response(sample: dict) -> str:
         opener = _pick(OPENERS_DISTRESS, seed + "o")
         follow = FOLLOW_DISTRESS.get(emotion, FOLLOW_DEFAULT)
         middle = _pick(MIDDLES, seed + "m")
+        question = _pick(QUESTIONS, seed + "q")
     else:
         opener = _pick(OPENERS_POSITIVE, seed + "o")
-        follow = FOLLOW_POSITIVE
+        follow = FOLLOW_POSITIVE_BY_EMOTION.get(emotion, FOLLOW_POSITIVE)
         middle = _pick(MIDDLES_POSITIVE, seed + "m")
-    return f"{opener}{middle}\n\n{follow}{_pick(QUESTIONS, seed + 'q')}"
+        question = _pick(QUESTIONS_POSITIVE, seed + "q")
+    return f"{opener}{middle}\n\n{follow}{question}"
 
 
 def main() -> None:
